@@ -1,15 +1,14 @@
 #!/usr/bin/env python3
 # This file is placed in the Public Domain.
 
-__version__ = 101
+__version__ = 100
 
-import os, sys ; sys.path.insert(0, "olib")
+import os, sys ; sys.path.insert(0, "ob")
 
 from bus import Bus
 from hdl import Handler
 from krn import Kernel
 from obj import cfg
-from trm import termreset, termsave
 
 import doctest
 import shutil
@@ -24,7 +23,6 @@ class Test(Handler):
             print(txt)
 
 def wrap(func):
-    termsave()
     try:
         func()
     except PermissionError as ex:
@@ -42,7 +40,7 @@ def main():
     k = Kernel()
     k.parse()
     k.boot("test", __version__)
-    k.scan("obj")
+    k.scan("ob")
     Bus.add(k)
     pat = "test_%s*" % "*"
     suite = unittest.loader.TestLoader().discover("test", pattern=pat)

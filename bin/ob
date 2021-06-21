@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 # This file is placed in the Public Domain.
 
-__version__ = 101
+__version__ = 100
 
+import atexit
 import os
 import sys
+import termios
 
 sys.path.insert(0, "ob")
 
@@ -16,7 +18,8 @@ from krn import Kernel, getdir
 from obj import cfg
 from tbl import Table
 
-name = "ocmd"
+name = "ob"
+resume = {}
 
 class CLI(Client):
 
@@ -43,7 +46,7 @@ def ver(event):
     event.reply("%s %s" % (Kernel.cfg.name.upper(), Kernel.cfg.version))
 
 def main():
-    cfg.wd = os.path.expanduser("~/.obot")
+    cfg.wd = os.path.expanduser("~/.obdata")
     Table.addcmd(rse)
     Table.addcmd(ver)
     k = Kernel()
@@ -52,4 +55,31 @@ def main():
     c = CLI()
     return c.cmd(k.cfg.otxt)
 
-main()
+def termsetup(fd):
+    return termios.tcgetattr(fd)
+
+def termreset():
+    if "old" in resume:
+        try:
+            termios.tcsetattr(resume["fd"], termios.TCSADRAIN, resume["old"])
+        except termios.error:
+            pass
+
+def termsave():
+    try:
+        resume["fd"] = sys.stdin.fileno()
+        resume["old"] = termsetup(sys.stdin.fileno())
+        atexit.register(termreset)
+    except termios.error:
+        pass
+
+def wrap(func):
+    termsave()
+    try:
+        func()
+    except KeyboardInterrupt:
+        pass
+    finally:
+        termreset()
+
+wrap(main)
