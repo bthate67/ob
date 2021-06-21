@@ -1,0 +1,55 @@
+#!/usr/bin/env python3
+# This file is placed in the Public Domain.
+
+__version__ = 101
+
+import os
+import sys
+
+sys.path.insert(0, "ob")
+
+from bus import Bus
+from clt import Client
+from err import Restart
+from hdl import Handler
+from krn import Kernel, getdir
+from obj import cfg
+from tbl import Table
+
+name = "ocmd"
+
+class CLI(Client):
+
+    def error(self, e):
+        print(e.exc)
+        raise Restart
+
+    def raw(self, txt):
+        print(txt)
+
+class Console(CLI):
+
+    def handle(self, e):
+        super().handle(e)
+        e.wait()
+
+    def poll(self):
+        return input("> ")
+
+def rse(event):
+    raise Restart
+
+def ver(event):
+    event.reply("%s %s" % (Kernel.cfg.name.upper(), Kernel.cfg.version))
+
+def main():
+    cfg.wd = os.path.expanduser("~/.obot")
+    Table.addcmd(rse)
+    Table.addcmd(ver)
+    k = Kernel()
+    k.boot(name, __version__)
+    k.start()
+    c = CLI()
+    return c.cmd(k.cfg.otxt)
+
+main()

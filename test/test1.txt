@@ -1,0 +1,30 @@
+# basic set
+
+>>> from obj import Object
+>>> o = Object()
+>>> o.set("key", "value")
+>>> o.key
+'value'
+
+# attribute set
+
+>>> from obj import Object
+>>> o = Object()
+>>> o.key = "value"
+>>> o.key
+'value'
+
+# save/load
+
+>>> from obj import Object, cfg
+>>> cfg.wd = ".test"
+>>> o = Object()
+>>> o["key"] = "value"
+>>> p = o.save()
+>>> p
+'obj.Object/...
+>>> oo = Object()
+>>> oo.load(p)
+{"key": "value"}
+>>> oo.key
+'value'
