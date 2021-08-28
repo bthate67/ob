@@ -3,22 +3,25 @@
 
 import importlib
 import os
-import pkgutil 
-import readline
-import shutil
+import pkgutil
 import sys
 import termios
+import threading
 import time
 
 wd = os.path.expanduser("~/.ob")
 md = os.path.join(wd, "mod")
-sd = "/usr/local/lib/ob/mod"
 
-from ob.obj import cdir, keys, spl
+from ob.bus import Bus
+from ob.obj import Object, fmt, find, fntime, get, getmain, getname, getwd, keys, listfiles, spl, update
 from ob.run import Client, Runtime
 from ob.tbl import Table
 from ob.trc import get_exception
+from ob.tms import elapsed
 from ob.ver import __version__
+
+
+starttime = time.time()
 
 
 class Console(Client):
@@ -44,14 +47,21 @@ class Kernel(Runtime):
     def log(self, txt):
         if "PING" in txt or "PONG" in txt:
             return
-        if k.cfg.verbose:
+        if self.cfg.verbose:
             print(txt)
             sys.stdout.flush()
 
 
+class Log(Object):
+
+    def __init__(self):
+        super().__init__()
+        self.txt = ""
+
+
 class Table(Table):
 
-   def scandir(self, path, pn="ob"):
+   def scandir(self, path, pn="mod"):
         dn, fn = os.path.split(path)
         sys.path.insert(0, dn)
         for mn in pkgutil.walk_packages([dn,]):
@@ -65,9 +75,6 @@ clt = Console()
 k = Kernel()
 tbl = Table()
 
-def popen(txt):
-    for l in os.popen(txt, "r").readlines():
-        print(l.rstrip())
 
 def wrap(func):
     fd = sys.stdin.fileno()
@@ -83,29 +90,18 @@ def wrap(func):
     finally:
         termios.tcsetattr(fd, termios.TCSADRAIN, old)
 
-def cmd(event):
-    event.reply(",".join(keys(tbl.modnames)))
-
-def cpy(event):
-    k.copymod(os.path.join(os.getcwd(), "mod"))
-
-def skl(event):
-    k.skel()
 
 def main():
     k.boot()
+    k.cfg.verbose = True
+    k.cfg.mod = "mod.irc,mod.rss,mod.udp"
+    if k.cfg.verbose:
+        k.log("OBT %s started at %s" % (__version__, time.ctime(time.time())))
     tbl.scandir(md)
-    tbl.add(cmd)
-    tbl.add(skl)
-    tbl.add(cpy)
-    k.log(",".join(keys(tbl.modnames)))
-    if k.cfg.txt:
-        return k.cmd(k.cfg.otxt)
-    if k.opt("c") or k.cfg.mod:
-        k.start()
-        k.init(k.cfg.mod)
-        clt.start()
-        k.wait()
+    k.start()
+    k.init(k.cfg.mod)
+    clt.start()
+    k.wait()
 
 
 wrap(main)

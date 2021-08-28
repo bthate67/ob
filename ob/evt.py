@@ -2,10 +2,16 @@
 
 import threading
 
-from bus import Bus
-from obj import Object
-from opt import Output
-from prs import parse_txt
+from .bus import Bus
+from .obj import Object
+from .opt import Output
+from .prs import parse_txt
+
+
+class ENoBot(Exception):
+
+    pass
+
 
 class Event(Object):
 
@@ -14,8 +20,10 @@ class Event(Object):
         self.channel = None
         self.done = threading.Event()
         self.error = ""
+        self.handler = None
         self.exc = None
         self.orig = None
+        self.origin = None
         self.result = []
         self.thrs = []
         self.type = "event"
@@ -25,8 +33,7 @@ class Event(Object):
         return Bus.byorig(self.orig)
 
     def parse(self):
-        if self.txt is not None:
-            parse_txt(self, self.txt)
+        parse_txt(self, self.txt)
 
     def ready(self):
         self.done.set()
@@ -35,13 +42,12 @@ class Event(Object):
         self.result.append(txt)
 
     def say(self, txt):
-        Bus.say(self.orig, self.channel, txt.rstrip())
+        Bus.say(self.orig, self.channel, txt)
 
     def show(self):
-        if self.exc:
-            self.say(self.exc)
-            return
         bot = self.bot()
+        if not bot:
+            raise ENoBot(self.orig)
         if bot.speed == "slow" and len(self.result) > 3:
             Output.append(self.channel, self.result)
             self.say("%s lines in cache, use !mre" % len(self.result))
@@ -53,6 +59,12 @@ class Event(Object):
         self.done.wait(timeout)
         for thr in self.thrs:
             thr.join(timeout)
+
+
+class Error(Event):
+
+    pass
+
 
 class Command(Event):
 

@@ -1,0 +1,14 @@
+[Unit]
+Description=OB - python3 object library
+After=multi-user.target
+
+[Service]
+DynamicUser=True
+StateDirectory=ob
+LogsDirectory=ob
+CacheDirectory=ob
+ExecStart=/usr/local/bin/obtd
+CapabilityBoundingSet=CAP_NET_RAW
+
+[Install]
+WantedBy=multi-user.target

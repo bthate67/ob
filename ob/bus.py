@@ -1,8 +1,6 @@
 # This file is placed in the Public Domain.
 
-"object handler"
-
-from obj import Object
+from .obj import Object
 
 class Bus(Object):
 
@@ -25,20 +23,33 @@ class Bus(Object):
     @staticmethod
     def byorig(orig):
         for o in Bus.objs:
-            if o.__dorepr__() == orig:
+            if o.__oqn__() == orig:
                 return o
+        return None
 
     @staticmethod
     def byfd(fd):
         for o in Bus.objs:
             if o.fd and o.fd == fd:
                 return o
+        return None
 
     @staticmethod
     def bytype(typ):
         for o in Bus.objs:
-            if isinstance(o, type):
+            if isinstance(o, typ):
                 return o
+        return None
+
+    @staticmethod
+    def first(otype=None):
+        if Bus.objs:
+            if not otype:
+                return Bus.objs[0]
+            for o in Bus.objs:
+                if otype in str(type(o)):
+                    return o
+        return None
 
     @staticmethod
     def resume():
@@ -48,13 +59,5 @@ class Bus(Object):
     @staticmethod
     def say(orig, channel, txt):
         for o in Bus.objs:
-            if o.__dorepr__() == orig:
+            if o.__oqn__() == orig:
                 o.say(channel, txt)
-
-def first(otype=None):
-    if Bus.objs:
-        if not otype:
-            return Bus.objs[0]
-        for o in Bus.objs:
-            if otype in str(type(o)):
-                return o

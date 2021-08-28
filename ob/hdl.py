@@ -3,70 +3,82 @@
 import queue
 import threading
 
-from bus import Bus
-from err import Restart, Stop
-from evt import Command, Event
-from obj import Object
-from tbl import Table
-from thr import launch
-from trc import get_exception
+from .bus import Bus
+from .evt import Command, Event
+from .obj import Object, fmt, getname, getmain
+from .thr import launch
+from .trc import get_exception
 
-class Handler(Object):
+class Error(Event):
+
+    pass
+
+
+class Restart(Exception):
+
+    pass
+
+
+class Stop(Exception):
+
+    pass
+
+
+class Break(Exception):
+
+    pass
+
+
+class ENotImplemented(Exception):
+
+    pass
+
+
+class Dispatcher(Object):
 
     def __init__(self):
         super().__init__()
         self.cbs = Object()
-        self.queue = queue.Queue()
-        self.speed = "normal"
-        self.stopped = threading.Event()
-        self.register("cmd", Handler.dispatch)
 
-    def callbacks(self, event):
+    def dispatch(self, event):
         if event and event.type in self.cbs:
             self.cbs[event.type](self, event)
         else:
             event.ready()
 
-    @staticmethod
-    def dispatch(hdl, obj):
-        obj.parse()
-        f = Table.getcmd(obj.cmd)
-        if f:
-            f(obj)
-            obj.show()
-        obj.ready()
+    def register(self, k, v):
+        self.cbs[str(k)] = v
 
-    def error(self, event):
+
+class Loop(Object):
+
+    def __init__(self):
+        super().__init__()
+        self.queue = queue.Queue()
+        self.speed = "normal"
+        self.stopped = threading.Event()
+
+    def do(self, e):
+        k = getmain("k")
+        k.dispatch(e)
+
+    def error(self, txt):
         pass
 
-    def event(self, txt):
-        if txt is None:
-            return txt
-        c = Command()
-        c.txt = txt or ""
-        c.orig = self.__dorepr__()
-        return c
-
-    def handle(self, e):
-        self.queue.put(e)
-
-    def dispatcher(self):
+    def loop(self):
         dorestart = False
         self.stopped.clear()
         while not self.stopped.isSet():
             e = self.queue.get()
             try:
-                self.callbacks(e)
+                self.do(e)
             except Restart:
                 dorestart = True
                 break
             except Stop:
                 break
-            except Exception as ex:
-                e = Event()
-                e.type = "error"
-                e.exc = get_exception()
-                self.error(e)
+            except Exception:
+                self.error(get_exception())
         if dorestart:
             self.restart()
 
@@ -77,17 +89,54 @@ class Handler(Object):
     def put(self, e):
         self.queue.put_nowait(e)
 
-    def register(self, name, callback):
-        self.cbs[name] = callback
-
-    def restart(self):
-        self.stop()
-        self.start()
-
     def start(self):
-        launch(self.dispatcher)
+        launch(self.loop)
         return self
 
     def stop(self):
         self.stopped.set()
         self.queue.put(None)
+
+
+class Handler(Dispatcher, Loop):
+
+    def __init__(self):
+        Dispatcher.__init__(self)
+        Loop.__init__(self)
+
+    def event(self, txt):
+        if txt is None:
+            return None
+        c = Command()
+        c.txt = txt or ""
+        c.orig = self.__oqn__()
+        return c
+
+    def handle(self, clt, e):
+        k = getmain("k")
+        k.log(fmt(e))
+        if k:
+            k.put(e)
+
+    def loop(self):
+        while not self.stopped.isSet():
+            try:
+                txt = self.poll()
+            except (ConnectionRefusedError, ConnectionResetError) as ex:
+                self.error(str(ex))
+                break
+            if txt is None:
+                self.error("%s stopped" % getname(self))
+                break
+            e = self.event(txt)
+            if not e:
+                self.error("%s stopped" % getname(self))
+                return
+            self.handle(self, e)
+
+    def poll(self):
+        return self.queue.get()
+
+    def start(self):
+        super().start()
+        Bus.add(self)

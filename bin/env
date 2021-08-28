@@ -4,17 +4,18 @@
 import os
 
 def open(txt):
-    for line in os.popen(txt).readlines():
-        print(line.rstrip())
+    try:
+        for line in os.popen(txt).readlines():
+            print(line.rstrip())
+    except:
+        pass
 
 def main():
-    open("rm -fR env")
     open("bin/clean")
     open("python3 setup.py sdist")
-    open("python3 -mvenv env")
-    open("env/bin/python3 env/bin/pip3 install -f dist olib --force-reinstall")
-    open("cp bin/obot env/bin")
+    open("python3 -mvirtualenv -p python3 env")
+    open("env/bin/python3 env/bin/pip3 install -f dist ob --upgrade --force-reinstall")
+    open("cp bin/ob env/bin")
 
 if __name__ == "__main__":
     main()
-    open("tar zcf env.tar.gz env")

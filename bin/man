@@ -1,0 +1,4 @@
+# This file is placed in the Public Domain
+
+pandoc files/ob.1.md -s -t man -o files/ob.1  && gzip -f files/ob.1
+chmod 444 files/ob.1.gz

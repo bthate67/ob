@@ -1,0 +1,58 @@
+#!/usr/bin/env python3
+# This file is placed in the Public Domain.
+
+import importlib
+import os
+import pkgutil
+import readline
+import sys
+import termios
+import time
+
+wd = "/var/lib/ob/"
+md = os.path.join(wd, "mod")
+
+from ob.obj import cdir, fmt, spl
+from ob.run import Runtime, fmt, spl
+from ob.tbl import Table
+from ob.ver import __version__
+
+class Kernel(Runtime):
+
+    def error(self, txt):
+        self.log(txt)
+
+    def log(self, txt):
+        print(txt)
+        #sys.stdout.flush()
+        
+
+class Table(Table):
+
+   def scandir(self, path, pn="mod"):
+        dn, fn = os.path.split(path)
+        sys.path.insert(0, dn)
+        for mn in pkgutil.walk_packages([dn,]):
+            mod = importlib.import_module(mn[1], pn)
+            if mod:
+                k.log("load %s" % mn[1])
+                self.introspect(mod)
+
+
+k = Kernel()
+tbl = Table()
+
+
+def main(): 
+    cdir(wd)
+    cdir(md)
+    k.writepid()
+    k.log("OBTD %s started at %s (%s)" % (__version__, time.ctime(time.time()), k.pid()))
+    tbl.scandir(md)
+    k.cfg.mod += ",mod.irc"
+    k.start()
+    k.init(k.cfg.mod)
+    k.wait()
+
+
+main()

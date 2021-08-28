@@ -1,0 +1,5 @@
+grep -R print ob
+grep -R __import__ ob
+grep -R popen ob
+grep -R exec ob
+grep -R importlib ob

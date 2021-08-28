@@ -1,0 +1,97 @@
+#!/usr/bin/env python3
+# This file is placed in the Public Domain.
+
+import importlib
+import os
+import pkgutil
+import readline
+import shutil
+import sys
+import termios
+import time
+
+command = "/usr/bin/systemd-run"
+arguments = "-q -t --property=Type=exec --no-ask-password --property=DynamicUser=yes --property=StateDirectory=ob obc "
+
+wd = "/var/lib/ob/"
+md = os.path.join(wd, "mod")
+sd = "/usr/local/lib/ob/mod"
+
+from ob.obj import cdir, fmt, keys, spl
+from ob.run import Client, Runtime
+from ob.tbl import Table
+from ob.trc import get_exception
+
+
+class CLI(Client):
+
+    def handle(self, clt, e):
+        k.put(e)
+
+    def raw(self, txt):
+        print(txt)
+        sys.stdout.flush()
+
+
+class Kernel(Runtime):
+
+    def error(self, txt):
+        print(txt)
+        sys.stdout.flush()
+        
+    def log(self, txt):
+        if self.cfg.verbose:
+            print(txt)
+            sys.stdout.flush()
+
+
+class Table(Table):
+
+   def scandir(self, path, pn="mod"):
+        dn, fn = os.path.split(path)
+        sys.path.insert(0, dn)
+        for mn in pkgutil.walk_packages([dn,]):
+            mod = importlib.import_module(mn[1], pn)
+            if mod:
+                k.log("load %s" % mn[1])
+                self.introspect(mod)
+
+
+clt = CLI()
+k = Kernel()
+tbl = Table()
+
+
+def exec(cmd, txt):
+    return os.execv(cmd, txt.split())
+
+
+def skl(event):
+    cm = os.path.join(os.getcwd(), "mod")
+    if os.path.exists(cm):
+         path =  cm
+    elif os.path.exists(sd):
+         path = sd
+    for fn in os.listdir(path):
+         if not fn.endswith(".py"):
+              continue
+         fnn = os.path.join(path, fn)
+         k.log("cp %s" % fnn)
+         shutil.copyfile(fnn, os.path.join(md, fn))
+
+
+def main(): 
+    k.parse_cli()
+    id = os.environ.get("INVOCATION_ID", None)
+    if not id:
+        arg = " ".join(sys.argv[1:])
+        if not arg:
+             return
+        return exec(command, command + " " + arguments + arg)
+    tbl.scandir(md)
+    tbl.add(skl)
+    if k.cfg.txt:
+        k.cmd(k.cfg.otxt)
+
+
+main()

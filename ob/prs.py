@@ -1,26 +1,37 @@
 # This file is placed in the Public Domain.
 
-from dft import Default
-from obj import Object
+from .obj import Object, update
 
-import datetime
+
+class ENoTxt(Exception):
+
+    pass
 
 class Token(Object):
 
-    def __init__(self, txt):
+    pass
+
+
+class Word(Token):
+
+    def __init__(self, txt=None):
         super().__init__()
+        if txt is None:
+            txt = ""
         self.txt = txt
 
-class Option(Default):
+
+class Option(Token):
 
     def __init__(self, txt):
         super().__init__()
         if txt.startswith("--"):
             self.opt = txt[2:]
-        if txt.startswith("-"):
+        elif txt.startswith("-"):
             self.opt = txt[1:]
 
-class Getter(Object):
+
+class Getter(Token):
 
     def __init__(self, txt):
         super().__init__()
@@ -31,18 +42,20 @@ class Getter(Object):
         if pre:
             self[pre] = post
 
-class Setter(Object):
+
+class Setter(Token):
 
     def __init__(self, txt):
         super().__init__()
         if "=" in txt:
-            pre, post = txt.split("=")
+            pre, post = txt.split("=", 1)
         else:
             pre = post = ""
         if pre:
             self[pre] = post
 
-class Skip(Object):
+
+class Skip(Token):
 
     def __init__(self, txt):
         super().__init__()
@@ -57,87 +70,45 @@ class Skip(Object):
         if pre:
             self[pre] = True
 
-class Url(Object):
+
+class Url(Token):
 
     def __init__(self, txt):
         super().__init__()
+        self.url = ""
         if txt.startswith("http"):
-            self["url"] = txt
+            self.url = txt
 
-def day():
-    return str(datetime.datetime.today()).split()[0]
-
-def elapsed(seconds, short=True):
-    txt = ""
-    nsec = float(seconds)
-    year = 365*24*60*60
-    week = 7*24*60*60
-    nday = 24*60*60
-    hour = 60*60
-    minute = 60
-    years = int(nsec/year)
-    nsec -= years*year
-    weeks = int(nsec/week)
-    nsec -= weeks*week
-    nrdays = int(nsec/nday)
-    nsec -= nrdays*nday
-    hours = int(nsec/hour)
-    nsec -= hours*hour
-    minutes = int(nsec/minute)
-    sec = nsec - minutes*minute
-    if years:
-        txt += "%sy" % years
-    if weeks:
-        nrdays += weeks * 7
-    if nrdays:
-        txt += "%sd" % nrdays
-    if years and short and txt:
-        return txt
-    if hours:
-        txt += "%sh" % hours
-    if nrdays and short and txt:
-        return txt
-    if minutes:
-        txt += "%sm" % minutes
-    if hours and short and txt:
-        return txt
-    if sec == 0:
-        txt += "0s"
-    else:
-        txt += "%ss" % int(sec)
-    txt = txt.strip()
-    return txt
 
 def parse_txt(o, ptxt=None):
     if ptxt is None:
-        raise NoTextError(o)
+        raise ENoTxt(o)
     o.txt = ptxt
     o.otxt = ptxt
-    o.gets = Default()
-    o.opts = Default()
+    o.gets = Object()
+    o.opts = Object()
     o.timed = []
     o.index = None
-    o.sets = Default()
-    o.skip = Default()
+    o.sets = Object()
+    o.skip = Object()
     args = []
-    for token in [Token(txt) for txt in ptxt.split()]:
-        u = Url(token.txt)
-        if u:
+    for t in [Word(txt) for txt in ptxt.rsplit()]:
+        u = Url(t.txt)
+        if u and "url" in u and u.url:
             args.append(u.url)
-            continue
-        s = Skip(token.txt)
+        s = Skip(t.txt)
         if s:
-            o.skip.update(s)
-            token.txt = token.txt[:-1]
-        g = Getter(token.txt)
+            update(o.skip, s)
+            t.txt = t.txt[:-1]
+        s = Setter(t.txt)
+        if s:
+            update(o.sets, s)
+            continue
+        g = Getter(t.txt)
         if g:
-            o.gets.update(g)
+            update(o.gets, g)
             continue
-        s = Setter(token.txt)
-        if s:
-            o.sets.update(s)
-            continue
-        opt = Option(token.txt)
+        opt = Option(t.txt)
         if opt:
             try:
                 o.index = int(opt.opt)
@@ -150,7 +121,7 @@ def parse_txt(o, ptxt=None):
             else:
                 o.opts[opt.opt] = True
             continue
-        args.append(token.txt)
+        args.append(t.txt)
     if not args:
         o.args = []
         o.cmd = ""
@@ -163,6 +134,7 @@ def parse_txt(o, ptxt=None):
     o.rest = " ".join(args[1:])
     return o
 
+
 def parse_ymd(daystr):
     valstr = ""
     val = 0
@@ -173,11 +145,11 @@ def parse_ymd(daystr):
         else:
             vv = 0
         if c == "y":
-            val = vv * 3600*24*365
+            val = vv * 3600 * 24 * 365
         if c == "w":
-            val = vv * 3600*24*7
+            val = vv * 3600 * 24 * 7
         elif c == "d":
-            val = vv * 3600*24
+            val = vv * 3600 * 24
         elif c == "h":
             val = vv * 3600
         elif c == "m":

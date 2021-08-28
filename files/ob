@@ -1,0 +1,19 @@
+#!/bin/ksh
+# This file is placed in the Public Domain.
+
+daemon="/usr/local/bin/obtd"
+
+. /etc/rc.d/rc.subr
+
+rc_reload=NO
+
+rc_pre() {
+            groupadd ob
+            useradd -b /var/lib -d /var/lib/ob -m -g ob ob 2>&1 &
+}
+
+rc_stop() {
+            pkill -f obtd
+}
+
+rc_cmd $1
